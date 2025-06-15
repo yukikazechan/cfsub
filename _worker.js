@@ -138,7 +138,8 @@ export default {
 
 			//去重
 			const uniqueLines = new Set(text.split('\n'));
-			const result = [...uniqueLines].join('\n');
+			let result = [...uniqueLines].join('\n');
+			result = yamlFix(result);
 			//console.log(result);
 
 			let base64Data;
@@ -332,6 +333,32 @@ function clashFix(content) {
 		content = result;
 	}
 	return content;
+}
+
+function yamlFix(content) {
+	if (!content) return content;
+	let lines;
+	if (content.includes('\r\n')) {
+		lines = content.split('\r\n');
+	} else {
+		lines = content.split('\n');
+	}
+
+	let result = "";
+	for (let line of lines) {
+		if (line.includes('server:') && line.includes('::')) {
+			const match = line.match(/server:\s*([^,]+)/);
+			if (match) {
+				const server = match[1].trim();
+				if (server.includes('::') && !server.startsWith('"')) {
+					line = line.replace(server, `"${server}"`);
+				}
+			}
+		}
+		result += line + '\n';
+	}
+
+	return result;
 }
 
 async function proxyURL(proxyURL, url) {
