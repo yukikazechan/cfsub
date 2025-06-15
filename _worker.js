@@ -139,7 +139,6 @@ export default {
 			//去重
 			const uniqueLines = new Set(text.split('\n'));
 			let result = [...uniqueLines].join('\n');
-			result = yamlFix(result);
 			//console.log(result);
 
 			let base64Data;
@@ -311,32 +310,6 @@ async function MD5MD5(text) {
 }
 
 function clashFix(content) {
-	if (content.includes('wireguard') && !content.includes('remote-dns-resolve')) {
-		let lines;
-		if (content.includes('\r\n')) {
-			lines = content.split('\r\n');
-		} else {
-			lines = content.split('\n');
-		}
-
-		let result = "";
-		for (let line of lines) {
-			if (line.includes('type: wireguard')) {
-				const 备改内容 = `, mtu: 1280, udp: true`;
-				const 正确内容 = `, mtu: 1280, remote-dns-resolve: true, udp: true`;
-				result += line.replace(new RegExp(备改内容, 'g'), 正确内容) + '\n';
-			} else {
-				result += line + '\n';
-			}
-		}
-
-		content = result;
-	}
-	return content;
-}
-
-function yamlFix(content) {
-	if (!content) return content;
 	let lines;
 	if (content.includes('\r\n')) {
 		lines = content.split('\r\n');
@@ -345,17 +318,29 @@ function yamlFix(content) {
 	}
 
 	let result = "";
+	const fixWireguard = content.includes('wireguard') && !content.includes('remote-dns-resolve');
+
 	for (let line of lines) {
-		if (line.includes('server:') && line.includes('::')) {
-			const match = line.match(/server:\s*([^,]+)/);
+		let processedLine = line;
+
+		// 修复 wireguard
+		if (fixWireguard && processedLine.includes('type: wireguard')) {
+			const 备改内容 = `, mtu: 1280, udp: true`;
+			const 正确内容 = `, mtu: 1280, remote-dns-resolve: true, udp: true`;
+			processedLine = processedLine.replace(new RegExp(备改内容, 'g'), 正确内容);
+		}
+
+		// 修复 IPv6
+		if (processedLine.includes('server:') && processedLine.includes('::')) {
+			const match = processedLine.match(/server:\s*([^,]+)/);
 			if (match) {
 				const server = match[1].trim();
 				if (server.includes('::') && !server.startsWith('"')) {
-					line = line.replace(server, `"${server}"`);
+					processedLine = processedLine.replace(server, `"${server}"`);
 				}
 			}
 		}
-		result += line + '\n';
+		result += processedLine + '\n';
 	}
 
 	return result;
